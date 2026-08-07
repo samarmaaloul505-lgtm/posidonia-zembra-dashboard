@@ -1,0 +1,5 @@
+station,mission_date,n_leaves_total,n_leaves_total_se,n_leaves_ad,n_leaves_ad_se,n_leaves_int,n_leaves_juv,n_leaves_juv_se,leaf_length_ad_mm,length_ad_se,leaf_width_ad_mm,leaf_width_ad_se,petiole_length_mm,petiole_length_se,petiole_width_mm,petiole_width_se,leaf_length_int_mm,leaf_length_int_se,leaf_width_int_mm,leaf_width_int_se,leaf_length_juv_mm,leaf_length_juv_se,leaf_width_juv_mm,leaf_width_juv_se,coeff_a_pct,coeff_a_hydro_pct,coeff_a_urchin_pct,coeff_a_fish_pct,leaf_area_per_shoot_cm2,leaf_area_per_shoot_se,leaf_area_index_m2
+S1,15/08/2022,5.6,0.8,3.3,0.4,0.9,1.6,0.3,627,53,10,2,42,2.7,11.8,2.8,156,42,12.8,0.5,20.5,5,8,0.5,70,72,0,28,224.6,26.8,11.6
+S2,15/08/2022,5.15,0.5,3.05,0.3,1,1.6,0.2,657,46,9.4,1.2,46.7,2.8,11.1,2.2,93.1,15.5,9.7,0.3,15,4.2,7.9,0.5,77,86,2,13,193.6,22.4,8.5
+S3,15/08/2022,5.2,0.54,2.95,0.3,1,1.7,0.35,557.6,43,9.5,1.4,41.5,2.5,11.2,2.4,71.7,20,9.6,0.3,14.6,4.3,7.8,0.5,76,38,13,49,168.5,17,7.4
+S4,15/08/2022,5.2,0.52,3,0.32,1,1.7,0.35,337,36,8,1.6,24,1.5,9,0.2,76.8,11.8,7.7,0.5,12.9,5,6,0.5,54,71,13,16,86.7,15.25,3.7
