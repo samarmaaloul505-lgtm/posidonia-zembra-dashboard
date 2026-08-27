@@ -1348,9 +1348,9 @@ with tab1:
 # ------------------------------------------------------------
 with tab2:
     st.subheader(T["chart_map_header"][lang])
-    fig = px.scatter_mapbox(stations, lat="latitude", lon="longitude", 
+    fig = px.scatter_map(stations, lat="latitude", lon="longitude", 
                              text="station", color="density_m2", size="cover_pct",
-                             zoom=13, mapbox_style="open-street-map",
+                             zoom=13, map_style="open-street-map",
                              title=T["chart_map_title"][lang])
     st.plotly_chart(fig, use_container_width=True)
     st.markdown(T["chart_map_interp"][lang])
