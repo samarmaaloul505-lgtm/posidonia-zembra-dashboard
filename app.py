@@ -5,6 +5,7 @@ import os
 import zipfile
 import io
 
+
 def create_zip_download(files_dict):
     """files_dict: {filename: DataFrame or string content}"""
     buffer = io.BytesIO()
@@ -18,74 +19,20 @@ def create_zip_download(files_dict):
     return buffer
 
 st.set_page_config(page_title="Posidonia oceanica - Zembra", layout="wide")
+import streamlit_authenticator as stauth
+from streamlit_authenticator.utilities import LoginError
+import yaml
+from yaml.loader import SafeLoader
 
-# ============================================================
-# DATA LOADING & PROCESSING — stays outside tabs, runs once
-# ============================================================
+with open('config.yaml') as file:
+    config = yaml.load(file, Loader=SafeLoader)
 
-stations = pd.read_csv("stations_structure.csv")
-phenology = pd.read_csv("stations_phenology.csv")
-invasive = pd.read_csv("invasive_species.csv")
-
-# Safety net for stray whitespace in column names
-stations.columns = stations.columns.str.strip()
-phenology.columns = phenology.columns.str.strip()
-invasive.columns = invasive.columns.str.strip()
-
-def classify_giraud(density):
-    if density > 700:
-        return "Type I - Très dense"
-    elif density >= 400:
-        return "Type II - Dense"
-    elif density >= 300:
-        return "Type III - Clairsemé"
-    elif density >= 150:
-        return "Type IV - Très clairsemé"
-    elif density >= 50:
-        return "Type V - Semi-herbier"
-    else:
-        return "Faisceaux isolés"
-
-pergent_table = {
-    1: [1133, 930, 727, 524],
-    2: [1067, 863, 659, 456],
-    3: [1005, 808, 612, 415],
-    4: [947, 757, 567, 377],
-    5: [892, 709, 526, 343],
-}
-
-def classify_pergent(density, depth):
-    depth_band = min(max(round(depth), 1), 5)
-    thresholds = pergent_table[depth_band]
-    if density > thresholds[0]:
-        return "Très bonne"
-    elif density > thresholds[1]:
-        return "Bonne"
-    elif density > thresholds[2]:
-        return "Moyenne"
-    elif density > thresholds[3]:
-        return "Médiocre"
-    else:
-        return "Mauvaise"
-
-stations["giraud_class"] = stations["density_m2"].apply(classify_giraud)
-stations["pergent_class"] = stations.apply(
-    lambda row: classify_pergent(row["density_m2"], row["depth_m"]), axis=1
+authenticator = stauth.Authenticate(
+    config['credentials'],
+    config['cookie']['name'],
+    config['cookie']['key'],
+    config['cookie']['expiry_days']
 )
-
-merged = pd.merge(stations, phenology, on="station")
-
-FUTURE_DATA_FILE = "future_missions.csv"
-if not os.path.exists(FUTURE_DATA_FILE):
-    pd.DataFrame(columns=[
-        "mission_date", "team_members", "weather_conditions", "description",
-        "station", "latitude", "longitude", "depth_m",
-        "density_m2", "cover_pct", "uprooting_mm",
-        "n_leaves_ad", "n_leaves_int", "n_leaves_juv",
-        "invasive_species_observed", "invasive_notes",
-        "interpretation"
-    ]).to_csv(FUTURE_DATA_FILE, index=False)
-
 # ============================================================
 # Translator section and dictionnary
 # ============================================================
@@ -372,9 +319,19 @@ d'un simple instantané en un véritable suivi temporel.
         "English": "Monitoring stations - south Zembra",
         "Français": "Stations de suivi - sud de Zembra"
     },
-    "chart_map_interp": {
-        "English": "*(Your interpretation: spatial layout of stations relative to port/reef)*",
-        "Français": "*(Votre interprétation : disposition spatiale des stations par rapport au port/récif)*"
+        "chart_map_interp": {
+        "English": """Stations 1, 2, and 3 sit along the meadow's upper limit at 2–3m, 
+spread along the coastline south of the port, while Station 4 sits apart — inside the 
+port itself, on the shallow ancient reef barrier (0.5–1m). This spatial split matters: 
+S4 isn't really a fourth point on the same transect, it's a separate, shallower habitat 
+that happens to be monitored alongside the others because of the reef's ecological and 
+historical value.""",
+        "Français": """Les stations 1, 2 et 3 se trouvent le long de la limite supérieure 
+de l'herbier, à 2-3m de profondeur, réparties le long du littoral au sud du port, tandis 
+que la Station 4 se trouve à part — à l'intérieur même du port, sur l'ancien récif barrière 
+peu profond (0,5-1m). Cette répartition spatiale est importante : S4 n'est pas vraiment un 
+quatrième point sur le même transect, mais un habitat distinct et moins profond, suivi aux 
+côtés des autres en raison de la valeur écologique et patrimoniale du récif."""
     },
     "chart_cover_header": {
         "English": "Meadow cover",
@@ -385,8 +342,19 @@ d'un simple instantané en un véritable suivi temporel.
         "Français": "Pourcentage du fond marin recouvert par la posidonie vivante"
     },
     "chart_cover_interp": {
-        "English": "*(Your interpretation: why S2 is lower - substrate type)*",
-        "Français": "*(Votre interprétation : pourquoi S2 est plus faible - type de substrat)*"
+        "English": """Cover is uniform and complete at S1 and S3 (100%), but drops sharply 
+at S2 (50%). This isn't a sign of meadow dieback — the 2022 report attributes it to S2 
+sitting on broken, rocky substrate rather than continuous sand, which naturally limits 
+how much of the seafloor Posidonia can colonize. It's also the same station where 
+*Caulerpa taxifolia* was recorded, which is worth continuing to monitor, though the 
+report notes no clear sign yet that the invasive alga is displacing the meadow there.""",
+        "Français": """Le recouvrement est uniforme et total à S1 et S3 (100 %), mais chute 
+fortement à S2 (50 %). Cela ne traduit pas un dépérissement de l'herbier — le rapport de 
+2022 attribue cela au substrat rocheux et fragmenté de S2, plutôt qu'à du sable continu, ce 
+qui limite naturellement la surface colonisable par la posidonie. C'est également la station 
+où *Caulerpa taxifolia* a été observée, ce qui mérite un suivi continu, bien que le rapport 
+ne signale pour l'instant aucun signe clair de déplacement de l'herbier par l'algue 
+invasive."""
     },
     "chart_coeffa_header": {
         "English": "Leaf damage — cause breakdown",
@@ -397,8 +365,22 @@ d'un simple instantané en un véritable suivi temporel.
         "Français": "Coefficient A : cause de la perte d'apex foliaire par station"
     },
     "chart_coeffa_interp": {
-        "English": "*(Your interpretation: S3 driven by grazing vs. others by wave action)*",
-        "Français": "*(Votre interprétation : S3 dominée par le broutage, contrairement aux autres stations dominées par l'hydrodynamisme)*"
+        "English": """Damage is high everywhere (54–77% of leaves show tip loss), but the 
+*cause* differs by station. At S1, S2, and S4, most damage comes from hydrodynamic stress 
+— wave and current action tearing leaf tips, consistent with their exposed position along 
+the coast. Station 3 breaks that pattern: less than 40% of its damage is hydrodynamic, 
+while grazing accounts for the rest, and nearly half of all leaf damage there comes 
+specifically from saupe fish. That points to biological grazing pressure as the dominant 
+factor at S3, not physical exposure — a genuinely different stressor from the other three 
+stations.""",
+        "Français": """Les dommages sont élevés partout (54 à 77 % des feuilles présentent 
+une perte d'apex), mais la *cause* diffère selon la station. À S1, S2 et S4, la majorité des 
+dommages provient du stress hydrodynamique — l'action des vagues et des courants arrachant 
+les extrémités des feuilles, cohérent avec leur position exposée le long du littoral. La 
+Station 3 rompt ce schéma : moins de 40 % de ses dommages sont d'origine hydrodynamique, le 
+reste étant dû au broutage, dont près de la moitié imputable spécifiquement à la saupe. Cela 
+indique que la pression de broutage biologique domine à S3, plutôt que l'exposition 
+physique — un stress d'une nature réellement différente des trois autres stations."""
     },
     "chart_lai_header": {
         "English": "Leaf area vs. depth",
@@ -409,9 +391,23 @@ d'un simple instantané en un véritable suivi temporel.
         "Français": "Indice foliaire selon la profondeur"
     },
     "chart_lai_interp": {
-        "English": "*(Your interpretation: does LAI look weaker at shallower S4?)*",
-        "Français": "*(Votre interprétation : l'indice foliaire semble-t-il plus faible à S4, moins profonde ?)*"
+        "English": """Leaf Area Index drops sharply at S4 (3.7 m²/m²) compared to S1, S2, 
+and S3 (7.4–11.6 m²/m²) — but S4 is also the shallowest station by far (0.5–1m vs. 2–3m). 
+This is consistent with what's expected physically: less water column means less light 
+buffering and more wave exposure, both of which limit leaf growth. With only four points 
+this isn't a statistically provable trend, but it's a pattern the 2026 deep-water stations 
+(15m and ~30m) will be able to test properly — plotting the same relationship across a 
+much wider depth range.""",
+        "Français": """L'indice foliaire chute fortement à S4 (3,7 m²/m²) par rapport à S1, 
+S2 et S3 (7,4 à 11,6 m²/m²) — mais S4 est également de loin la station la moins profonde 
+(0,5-1m contre 2-3m). Cela correspond à ce qui est physiquement attendu : une colonne d'eau 
+plus faible signifie moins d'atténuation lumineuse mais une exposition aux vagues accrue, 
+deux facteurs qui limitent la croissance foliaire. Avec seulement quatre points, il ne 
+s'agit pas d'une tendance statistiquement démontrable, mais c'est un schéma que les futures 
+stations profondes de 2026 (15m et ~30m) permettront de tester correctement — en traçant la 
+même relation sur une plage de profondeur bien plus large."""
     },
+
     "chart_radar_header": {
         "English": "Density profile (all stations)",
         "Français": "Profil de densité (toutes les stations)"
@@ -421,8 +417,16 @@ d'un simple instantané en un véritable suivi temporel.
         "Français": "Densité des faisceaux - comparaison des stations"
     },
     "chart_radar_interp": {
-        "English": "*(Your interpretation: overall shape/balance across stations)*",
-        "Français": "*(Votre interprétation : forme/équilibre global entre les stations)*"
+        "English": """The four stations form a fairly balanced shape rather than one 
+station dramatically outperforming the others — densities range narrowly between 
+434 and 516 shoots/m². S1 is the clear high point of the four, but the overall picture 
+is one of a consistent meadow across the surveyed area, not a site with one obviously 
+strong or weak station.""",
+        "Français": """Les quatre stations forment une figure relativement équilibrée, sans 
+qu'une station ne se démarque nettement des autres — les densités varient dans une 
+fourchette étroite, entre 434 et 516 faisceaux/m². S1 constitue clairement le point le plus 
+élevé des quatre, mais l'image globale est celle d'un herbier cohérent sur l'ensemble de la 
+zone étudiée, plutôt qu'un site avec une station manifestement forte ou faible."""
     },
     "chart_error_header": {
         "English": "Shoot density with uncertainty",
@@ -433,8 +437,19 @@ d'un simple instantané en un véritable suivi temporel.
         "Français": "Densité des faisceaux ± erreur standard"
     },
     "chart_error_interp": {
-        "English": "*(Your interpretation: do the error bars overlap between stations?)*",
-        "Français": "*(Votre interprétation : les barres d'erreur se chevauchent-elles entre les stations ?)*"
+        "English": """Once the error bars (±SE) are included, S2, S3, and S4 overlap 
+almost entirely — their density estimates aren't meaningfully distinguishable from 
+each other given the natural variability in the quadrat counts. S1 sits noticeably 
+higher and its error range doesn't overlap with S4's, so that difference looks real. 
+In short: S1 stands out, but treating S2/S3/S4 as three different density "tiers" 
+would be overstating what the data actually supports.""",
+        "Français": """En intégrant les barres d'erreur (± erreur standard), S2, S3 et S4 se 
+chevauchent presque entièrement — leurs estimations de densité ne sont pas réellement 
+distinguables les unes des autres compte tenu de la variabilité naturelle des comptages au 
+quadrat. S1 se situe nettement plus haut, et sa plage d'erreur ne chevauche pas celle de 
+S4, ce qui suggère une différence réelle. En résumé : S1 se démarque, mais considérer S2, 
+S3 et S4 comme trois « niveaux » de densité distincts irait au-delà de ce que les données 
+permettent réellement d'affirmer."""
     },
     "chart_leafage_header": {
         "English": "Leaf age structure",
@@ -445,8 +460,17 @@ d'un simple instantané en un véritable suivi temporel.
         "Français": "Feuilles adultes, intermédiaires et juvéniles par faisceau"
     },
     "chart_leafage_interp": {
-        "English": "*(Your interpretation: consistent growth activity across stations?)*",
-        "Français": "*(Votre interprétation : activité de croissance homogène entre les stations ?)*"
+        "English": """The mix of adult, intermediate, and juvenile leaves per shoot is 
+nearly identical across all four stations (roughly 3 adult, 1 intermediate, 1.6–1.7 
+juvenile leaves per shoot). This consistency is actually a reassuring sign — it suggests 
+all four stations are in an active, ongoing growth cycle rather than one station showing 
+signs of reduced leaf turnover or stalled growth relative to the others.""",
+        "Français": """La répartition des feuilles adultes, intermédiaires et juvéniles par 
+faisceau est presque identique dans les quatre stations (environ 3 feuilles adultes, 1 
+intermédiaire, 1,6 à 1,7 juvéniles par faisceau). Cette homogénéité est en réalité un signe 
+rassurant — elle suggère que les quatre stations sont dans un cycle de croissance actif et 
+continu, sans qu'aucune ne montre de signe de ralentissement du renouvellement foliaire par 
+rapport aux autres."""
     },
     "chart_bubble_header": {
         "English": "Combined health profile",
@@ -457,8 +481,23 @@ d'un simple instantané en un véritable suivi temporel.
         "Français": "Recouvrement, densité et surface foliaire combinés"
     },
     "chart_bubble_interp": {
-        "English": "*(Your interpretation: does one station underperform across all three metrics?)*",
-        "Français": "*(Votre interprétation : une station est-elle en dessous des trois indicateurs à la fois ?)*"
+        "English": """S1 stands out as the strongest station overall — high cover, the 
+highest density, and (implicitly, via bubble size) a large leaf area. S4 is the clear 
+opposite: lower density and a visibly smaller bubble, reflecting its much lower LAI — 
+consistent with it being the shallow reef station rather than part of the main meadow 
+transect. S2 is the interesting middle case: its density is comparable to S3, but its 
+lower cover pulls it further left on the chart, visually isolating it from the other 
+2–3m stations — which lines up with its distinct rocky substrate rather than a broader 
+health problem.""",
+        "Français": """S1 se distingue comme la station globalement la plus performante — 
+recouvrement élevé, densité la plus forte, et (via la taille de la bulle) une surface 
+foliaire importante. S4 est à l'inverse le cas le plus faible : densité plus basse et bulle 
+visiblement plus petite, reflétant son indice foliaire bien plus réduit — cohérent avec son 
+statut de station de récif peu profond plutôt que de faire partie du transect principal de 
+l'herbier. S2 constitue un cas intermédiaire intéressant : sa densité est comparable à celle 
+de S3, mais son recouvrement plus faible la décale vers la gauche du graphique, l'isolant 
+visuellement des autres stations à 2-3m — ce qui concorde avec son substrat rocheux distinct 
+plutôt qu'un problème de santé plus général."""
     },
     "invasive_header": {
         "English": "Invasive species observed",
@@ -868,7 +907,373 @@ de *Posidonia oceanica* :
         "English": "See all 11 balise photos",
         "Français": "Voir les 11 photos de balises"
     },
+        "submit_edit_hint": {
+        "English": "Click any cell to edit it. Hover over a row and click the trash icon to delete it. Click **Save changes** when done.",
+        "Français": "Cliquez sur une cellule pour la modifier. Survolez une ligne et cliquez sur l'icône de corbeille pour la supprimer. Cliquez sur **Enregistrer les modifications** une fois terminé."
+    },
+    "submit_save_button": {
+        "English": "💾 Save changes",
+        "Français": "💾 Enregistrer les modifications"
+    },
+    "submit_save_success": {
+        "English": "Changes saved successfully.",
+        "Français": "Modifications enregistrées avec succès."
+    },
+        "submit_photos_label": {
+        "English": "Upload photos from this mission (optional)",
+        "Français": "Téléverser des photos de cette mission (optionnel)"
+    },
+    "gallery_new_missions_header": {
+        "English": "Recent mission submissions",
+        "Français": "Soumissions récentes de mission"
+    },
+    "gallery_no_new_photos": {
+        "English": "No photos submitted yet.",
+        "Français": "Aucune photo soumise pour le moment."
+    },
+        "account_settings_header": {
+        "English": "⚙️ Account settings",
+        "Français": "⚙️ Paramètres du compte"
+    },
+    "account_username_label": {
+        "English": "Username",
+        "Français": "Nom d'utilisateur"
+    },
+    "account_name_label": {
+        "English": "Full name",
+        "Français": "Nom complet"
+    },
+    "account_email_label": {
+        "English": "Email",
+        "Français": "E-mail"
+    },
+    "account_new_password_label": {
+        "English": "New password (leave blank to keep current)",
+        "Français": "Nouveau mot de passe (laisser vide pour conserver l'actuel)"
+    },
+    "account_save_button": {
+        "English": "Save profile",
+        "Français": "Enregistrer le profil"
+    },
+    "account_saved": {
+        "English": "Profile updated.",
+        "Français": "Profil mis à jour."
+    },
+    "account_change_username_header": {
+        "English": "Change username",
+        "Français": "Changer de nom d'utilisateur"
+    },
+    "account_new_username_label": {
+        "English": "New username",
+        "Français": "Nouveau nom d'utilisateur"
+    },
+    "account_change_username_button": {
+        "English": "Change username",
+        "Français": "Changer de nom d'utilisateur"
+    },
+    "account_username_taken": {
+        "English": "That username is already taken.",
+        "Français": "Ce nom d'utilisateur est déjà pris."
+    },
+    "account_username_changed": {
+        "English": "Username changed. Please log in again with your new username.",
+        "Français": "Nom d'utilisateur modifié. Veuillez vous reconnecter avec votre nouveau nom d'utilisateur."
+    },
+    "account_danger_zone": {
+        "English": "Danger zone",
+        "Français": "Zone à risque"
+    },
+    "account_confirm_delete_checkbox": {
+        "English": "I understand this will permanently delete my account",
+        "Français": "Je comprends que cela supprimera définitivement mon compte"
+    },
+    "account_delete_button": {
+        "English": "Delete my account",
+        "Français": "Supprimer mon compte"
+    },
+    "account_deleted": {
+        "English": "Account deleted. You have been logged out.",
+        "Français": "Compte supprimé. Vous avez été déconnecté."
+    },
+    "manage_accounts_header": {
+        "English": "👥 Manage accounts",
+        "Français": "👥 Gérer les comptes"
+    },
+    "add_account_header": {
+        "English": "Add a new account",
+        "Français": "Ajouter un nouveau compte"
+    },
+    "add_account_username": {
+        "English": "Username",
+        "Français": "Nom d'utilisateur"
+    },
+    "add_account_name": {
+        "English": "Full name",
+        "Français": "Nom complet"
+    },
+    "add_account_email": {
+        "English": "Email",
+        "Français": "E-mail"
+    },
+    "add_account_password": {
+        "English": "Temporary password",
+        "Français": "Mot de passe temporaire"
+    },
+    "add_account_role": {
+        "English": "Role",
+        "Français": "Rôle"
+    },
+    "add_account_button": {
+        "English": "Create account",
+        "Français": "Créer le compte"
+    },
+    "add_account_exists": {
+        "English": "That username already exists.",
+        "Français": "Ce nom d'utilisateur existe déjà."
+    },
+    "add_account_success": {
+        "English": "Account created for {username}.",
+        "Français": "Compte créé pour {username}."
+    },
+    "existing_accounts_header": {
+        "English": "Existing accounts",
+        "Français": "Comptes existants"
+    },
+    "existing_accounts_hint": {
+        "English": "Select accounts to delete, then click below.",
+        "Français": "Sélectionnez les comptes à supprimer, puis cliquez ci-dessous."
+    },
+    "delete_accounts_button": {
+        "English": "🗑 Delete selected accounts",
+        "Français": "🗑 Supprimer les comptes sélectionnés"
+    },
+    "delete_accounts_success": {
+        "English": "Selected accounts deleted.",
+        "Français": "Comptes sélectionnés supprimés."
+    },
+    "delete_self_warning": {
+        "English": "You cannot delete your own account here — use Account Settings instead.",
+        "Français": "Vous ne pouvez pas supprimer votre propre compte ici — utilisez plutôt les Paramètres du compte."
+    },
+    "no_accounts_selected": {
+        "English": "Select at least one account to delete.",
+        "Français": "Sélectionnez au moins un compte à supprimer."
+    },
 }
+
+
+try:
+    authenticator.login()
+except LoginError:
+    st.error("Your session has expired or is no longer valid. Please clear your "
+              "browser cookies for this site, then reload the page and log in again.")
+    st.stop()
+
+if st.session_state.get('authentication_status') is False:
+    st.error('Username or password is incorrect')
+    st.stop()
+elif st.session_state.get('authentication_status') is None:
+    st.warning('Please log in to access the dashboard')
+    st.stop()
+
+# --- Logged in from here on ---
+username = st.session_state['username']
+user_role = config['credentials']['usernames'][username]['role']
+is_admin = (user_role == 'admin')
+
+authenticator.logout('Logout', 'sidebar')
+st.sidebar.markdown(f"Logged in as **{st.session_state['name']}** ({user_role})")
+
+# ---------------- Personal account settings ----------------
+with st.sidebar.expander(T["account_settings_header"][lang]):
+    st.markdown(f"**{T['account_username_label'][lang]}:** {username}")
+
+    with st.form("edit_profile_form"):
+        new_name = st.text_input(T["account_name_label"][lang], 
+                                  value=config['credentials']['usernames'][username]['name'])
+        new_email = st.text_input(T["account_email_label"][lang], 
+                                   value=config['credentials']['usernames'][username]['email'])
+        new_password = st.text_input(T["account_new_password_label"][lang], type="password")
+        save_profile = st.form_submit_button(T["account_save_button"][lang])
+
+        if save_profile:
+            config['credentials']['usernames'][username]['name'] = new_name
+            config['credentials']['usernames'][username]['email'] = new_email
+            if new_password:
+                hasher = stauth.Hasher()
+                config['credentials']['usernames'][username]['password'] = hasher.hash(new_password)
+            with open('config.yaml', 'w') as file:
+                yaml.dump(config, file, default_flow_style=False)
+            st.success(T["account_saved"][lang])
+            st.rerun()
+
+    st.divider()
+    st.markdown(f"**{T['account_change_username_header'][lang]}**")
+    with st.form("change_username_form"):
+        new_username_input = st.text_input(T["account_new_username_label"][lang])
+        change_username_submit = st.form_submit_button(T["account_change_username_button"][lang])
+
+        if change_username_submit and new_username_input:
+            if new_username_input in config['credentials']['usernames']:
+                st.error(T["account_username_taken"][lang])
+            else:
+                config['credentials']['usernames'][new_username_input] = config['credentials']['usernames'].pop(username)
+                with open('config.yaml', 'w') as file:
+                    yaml.dump(config, file, default_flow_style=False)
+                st.success(T["account_username_changed"][lang])
+                for key in ["authentication_status", "name", "username"]:
+                    if key in st.session_state:
+                        del st.session_state[key]
+                st.rerun()
+
+    st.divider()
+    st.markdown(f"**{T['account_danger_zone'][lang]}**")
+    confirm_delete = st.checkbox(T["account_confirm_delete_checkbox"][lang])
+    if st.button(T["account_delete_button"][lang], disabled=not confirm_delete):
+        del config['credentials']['usernames'][username]
+        with open('config.yaml', 'w') as file:
+            yaml.dump(config, file, default_flow_style=False)
+        for key in ["authentication_status", "name", "username"]:
+            if key in st.session_state:
+                del st.session_state[key]
+        st.success(T["account_deleted"][lang])
+        st.rerun()
+
+# ---------------- Admin: manage all accounts ----------------
+if is_admin:
+    with st.sidebar.expander(T["manage_accounts_header"][lang]):
+        st.markdown(f"**{T['add_account_header'][lang]}**")
+        with st.form("add_user_form"):
+            new_acc_username = st.text_input(T["add_account_username"][lang])
+            new_acc_name = st.text_input(T["add_account_name"][lang])
+            new_acc_email = st.text_input(T["add_account_email"][lang])
+            new_acc_password = st.text_input(T["add_account_password"][lang], type="password")
+            new_acc_role = st.selectbox(T["add_account_role"][lang], ["member", "admin"])
+            add_submitted = st.form_submit_button(T["add_account_button"][lang])
+
+            if add_submitted:
+                if new_acc_username in config['credentials']['usernames']:
+                    st.error(T["add_account_exists"][lang])
+                else:
+                    hasher = stauth.Hasher()
+                    config['credentials']['usernames'][new_acc_username] = {
+                        'email': new_acc_email,
+                        'name': new_acc_name,
+                        'password': hasher.hash(new_acc_password),
+                        'role': new_acc_role
+                    }
+                    with open('config.yaml', 'w') as file:
+                        yaml.dump(config, file, default_flow_style=False)
+                    st.success(T["add_account_success"][lang].format(username=new_acc_username))
+                    st.rerun()
+
+        st.divider()
+        st.markdown(f"**{T['existing_accounts_header'][lang]}**")
+        st.caption(T["existing_accounts_hint"][lang])
+
+        accounts_list = [
+            {"Select": False, "Username": u, "Name": d.get("name", ""), 
+             "Email": d.get("email", ""), "Role": d.get("role", "")}
+            for u, d in config['credentials']['usernames'].items()
+        ]
+        accounts_df = pd.DataFrame(accounts_list)
+        edited_accounts = st.data_editor(
+            accounts_df, use_container_width=True, hide_index=True,
+            disabled=["Username", "Name", "Email", "Role"], key="accounts_editor"
+        )
+
+        if st.button(T["delete_accounts_button"][lang]):
+            to_delete = edited_accounts[edited_accounts["Select"] == True]["Username"].tolist()
+            if not to_delete:
+                st.warning(T["no_accounts_selected"][lang])
+            elif username in to_delete:
+                st.error(T["delete_self_warning"][lang])
+            else:
+                for uname in to_delete:
+                    del config['credentials']['usernames'][uname]
+                with open('config.yaml', 'w') as file:
+                    yaml.dump(config, file, default_flow_style=False)
+                st.success(T["delete_accounts_success"][lang])
+                st.rerun()
+
+# ============================================================
+# DATA LOADING & PROCESSING — stays outside tabs, runs once
+# ============================================================
+
+stations = pd.read_csv("stations_structure.csv")
+phenology = pd.read_csv("stations_phenology.csv")
+invasive = pd.read_csv("invasive_species.csv")
+
+# Safety net for stray whitespace in column names
+stations.columns = stations.columns.str.strip()
+phenology.columns = phenology.columns.str.strip()
+invasive.columns = invasive.columns.str.strip()
+
+def classify_giraud(density):
+    if density > 700:
+        return "Type I - Très dense"
+    elif density >= 400:
+        return "Type II - Dense"
+    elif density >= 300:
+        return "Type III - Clairsemé"
+    elif density >= 150:
+        return "Type IV - Très clairsemé"
+    elif density >= 50:
+        return "Type V - Semi-herbier"
+    else:
+        return "Faisceaux isolés"
+
+pergent_table = {
+    1: [1133, 930, 727, 524],
+    2: [1067, 863, 659, 456],
+    3: [1005, 808, 612, 415],
+    4: [947, 757, 567, 377],
+    5: [892, 709, 526, 343],
+}
+
+def classify_pergent(density, depth):
+    depth_band = min(max(round(depth), 1), 5)
+    thresholds = pergent_table[depth_band]
+    if density > thresholds[0]:
+        return "Très bonne"
+    elif density > thresholds[1]:
+        return "Bonne"
+    elif density > thresholds[2]:
+        return "Moyenne"
+    elif density > thresholds[3]:
+        return "Médiocre"
+    else:
+        return "Mauvaise"
+
+stations["giraud_class"] = stations["density_m2"].apply(classify_giraud)
+stations["pergent_class"] = stations.apply(
+    lambda row: classify_pergent(row["density_m2"], row["depth_m"]), axis=1
+)
+
+merged = pd.merge(stations, phenology, on="station")
+
+FUTURE_DATA_FILE = "future_missions.csv"
+if not os.path.exists(FUTURE_DATA_FILE):
+    pd.DataFrame(columns=[
+        "mission_date", "team_members", "weather_conditions", "description",
+        "station", "latitude", "longitude", "depth_m",
+        "density_m2", "cover_pct", "uprooting_mm",
+        "n_leaves_ad", "n_leaves_int", "n_leaves_juv",
+        "invasive_species_observed", "invasive_notes",
+        "interpretation"
+    ]).to_csv(FUTURE_DATA_FILE, index=False)
+
+import uuid
+
+PHOTOS_DIR = "images/mission/submitted"
+PHOTOS_MANIFEST = "mission_photos.csv"
+
+if not os.path.exists(PHOTOS_DIR):
+    os.makedirs(PHOTOS_DIR)
+
+if not os.path.exists(PHOTOS_MANIFEST):
+    pd.DataFrame(columns=["filename", "mission_date", "station", "caption"]).to_csv(PHOTOS_MANIFEST, index=False)
+
 
 # ============================================================
 # HEADER — shown above all tabs
@@ -879,7 +1284,7 @@ st.set_page_config(page_title="Posidonia oceanica - Zembra", layout="wide", page
 # --- Top bar: partnership branding ---
 st.markdown("""
 <div style='text-align: right; font-size: 13px; color: #888; margin-bottom: -10px;'>
-    In partnership with <b style='color: #444;'>ASPEN</b> · <b style='color: #444;'>MSE</b>
+    In partnership with <b style='color: #444;'>ASPEN Cap Bon</b> · <b style='color: #444;'>Manouba School of Engineering</b>
 </div>
 """, unsafe_allow_html=True)
 
@@ -1091,100 +1496,143 @@ with tab4:
 # TAB 5 — SUBMIT MISSION DATA
 # ------------------------------------------------------------
 with tab5:
-    st.header(T["submit_header"][lang])
-    st.markdown(T["submit_intro"][lang])
+    if not is_admin:
+        st.warning("Only admin accounts can submit mission data.")
+    else:
+        st.header(T["submit_header"][lang])
+        st.markdown(T["submit_intro"][lang])
 
-    with st.form("new_mission_form"):
-        st.subheader(T["submit_context_header"][lang])
-        col1, col2 = st.columns(2)
-        with col1:
-            mission_date = st.date_input(T["submit_date"][lang])
-            team_members = st.text_input(T["submit_team"][lang], 
-                                          placeholder=T["submit_team_placeholder"][lang])
-        with col2:
-            weather_conditions = st.text_input(T["submit_weather"][lang], 
-                                                placeholder=T["submit_weather_placeholder"][lang])
-            description = st.text_area(T["submit_description"][lang], 
-                                        placeholder=T["submit_description_placeholder"][lang])
+        with st.form("new_mission_form"):
+            st.subheader(T["submit_context_header"][lang])
+            col1, col2 = st.columns(2)
+            with col1:
+                mission_date = st.date_input(T["submit_date"][lang])
+                team_members = st.text_input(T["submit_team"][lang], 
+                                              placeholder=T["submit_team_placeholder"][lang])
+            with col2:
+                weather_conditions = st.text_input(T["submit_weather"][lang], 
+                                                    placeholder=T["submit_weather_placeholder"][lang])
+                description = st.text_area(T["submit_description"][lang], 
+                                            placeholder=T["submit_description_placeholder"][lang])
 
-        st.divider()
-        st.subheader(T["submit_location_header"][lang])
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            station = st.text_input(T["submit_station_name"][lang], placeholder="e.g. S5, Deep-1")
-        with col2:
-            latitude = st.number_input(T["submit_lat"][lang], min_value=-90.0, max_value=90.0, 
-                                        format="%.6f", value=37.118000)
-        with col3:
-            longitude = st.number_input(T["submit_lon"][lang], min_value=-180.0, max_value=180.0, 
-                                         format="%.6f", value=10.805000)
-        depth_m = st.number_input(T["submit_depth"][lang], min_value=0.0, max_value=60.0, step=0.5)
-
-        st.divider()
-        st.subheader(T["submit_structure_header"][lang])
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            density_m2 = st.number_input(T["submit_density"][lang], min_value=0.0, step=1.0)
-        with col2:
-            cover_pct = st.number_input(T["submit_cover"][lang], min_value=0.0, max_value=100.0, step=1.0)
-        with col3:
-            dechaussement_mm = st.number_input(T["submit_dechaussement"][lang], min_value=0.0, step=1.0)
-
-        with st.expander(T["submit_phenology_expander"][lang]):
+            st.divider()
+            st.subheader(T["submit_location_header"][lang])
             col1, col2, col3 = st.columns(3)
             with col1:
-                n_leaves_ad = st.number_input(T["submit_leaves_ad"][lang], min_value=0.0, step=0.1)
+                station = st.text_input(T["submit_station_name"][lang], placeholder="e.g. S5, Deep-1")
             with col2:
-                n_leaves_int = st.number_input(T["submit_leaves_int"][lang], min_value=0.0, step=0.1)
+                latitude = st.number_input(T["submit_lat"][lang], min_value=-90.0, max_value=90.0, 
+                                            format="%.6f", value=37.118000)
             with col3:
-                n_leaves_juv = st.number_input(T["submit_leaves_juv"][lang], min_value=0.0, step=0.1)
+                longitude = st.number_input(T["submit_lon"][lang], min_value=-180.0, max_value=180.0, 
+                                             format="%.6f", value=10.805000)
+            depth_m = st.number_input(T["submit_depth"][lang], min_value=0.0, max_value=60.0, step=0.5)
 
-        st.divider()
-        st.subheader(T["submit_invasive_header"][lang])
-        invasive_species_observed = st.multiselect(
-            T["submit_invasive_select"][lang],
-            ["Caulerpa taxifolia", "Asparagopsis armata", "Pinctada radiata", "Percnon gibbesi", "Other"]
-        )
-        invasive_notes = st.text_area(T["submit_invasive_notes"][lang], 
-                                       placeholder=T["submit_invasive_notes_placeholder"][lang])
+            st.divider()
+            st.subheader(T["submit_structure_header"][lang])
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                density_m2 = st.number_input(T["submit_density"][lang], min_value=0.0, step=1.0)
+            with col2:
+                cover_pct = st.number_input(T["submit_cover"][lang], min_value=0.0, max_value=100.0, step=1.0)
+            with col3:
+                dechaussement_mm = st.number_input(T["submit_dechaussement"][lang], min_value=0.0, step=1.0)
 
-        st.divider()
-        st.subheader(T["submit_interpretation_header"][lang])
-        interpretation = st.text_area(T["submit_interpretation_label"][lang],
-                                       placeholder=T["submit_interpretation_placeholder"][lang])
+            with st.expander(T["submit_phenology_expander"][lang]):
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    n_leaves_ad = st.number_input(T["submit_leaves_ad"][lang], min_value=0.0, step=0.1)
+                with col2:
+                    n_leaves_int = st.number_input(T["submit_leaves_int"][lang], min_value=0.0, step=0.1)
+                with col3:
+                    n_leaves_juv = st.number_input(T["submit_leaves_juv"][lang], min_value=0.0, step=0.1)
 
-        submitted = st.form_submit_button(T["submit_button"][lang])
+            st.divider()
+            st.subheader(T["submit_invasive_header"][lang])
+            invasive_species_observed = st.multiselect(
+                T["submit_invasive_select"][lang],
+                ["Caulerpa taxifolia", "Asparagopsis armata", "Pinctada radiata", "Percnon gibbesi", "Other"]
+            )
+            invasive_notes = st.text_area(T["submit_invasive_notes"][lang], 
+                                           placeholder=T["submit_invasive_notes_placeholder"][lang])
 
-        if submitted:
-            new_row = pd.DataFrame([{
-                "mission_date": mission_date,
-                "team_members": team_members,
-                "weather_conditions": weather_conditions,
-                "description": description,
-                "station": station,
-                "latitude": latitude,
-                "longitude": longitude,
-                "depth_m": depth_m,
-                "density_m2": density_m2,
-                "cover_pct": cover_pct,
-                "dechaussement_mm": dechaussement_mm,
-                "n_leaves_ad": n_leaves_ad,
-                "n_leaves_int": n_leaves_int,
-                "n_leaves_juv": n_leaves_juv,
-                "invasive_species_observed": ", ".join(invasive_species_observed),
-                "invasive_notes": invasive_notes,
-                "interpretation": interpretation
-            }])
-            new_row.to_csv(FUTURE_DATA_FILE, mode="a", header=False, index=False)
-            st.success(T["submit_success"][lang].format(date=mission_date, station=station))
+            st.divider()
+            st.subheader(T["submit_interpretation_header"][lang])
+            interpretation = st.text_area(T["submit_interpretation_label"][lang],
+                                           placeholder=T["submit_interpretation_placeholder"][lang])
+            uploaded_photos = st.file_uploader(
+                T["submit_photos_label"][lang],
+                type=["jpg", "jpeg", "png"],
+                accept_multiple_files=True
+            )
 
-    st.subheader(T["submit_history_header"][lang])
-    future_data = pd.read_csv(FUTURE_DATA_FILE)
-    if len(future_data) > 0:
-        st.dataframe(future_data, use_container_width=True, hide_index=True)
-    else:
-        st.info(T["submit_no_data"][lang])
-    
+
+            submitted = st.form_submit_button(T["submit_button"][lang])
+
+            if submitted:
+                new_row = pd.DataFrame([{
+                    "mission_date": mission_date,
+                    "team_members": team_members,
+                    "weather_conditions": weather_conditions,
+                    "description": description,
+                    "station": station,
+                    "latitude": latitude,
+                    "longitude": longitude,
+                    "depth_m": depth_m,
+                    "density_m2": density_m2,
+                    "cover_pct": cover_pct,
+                    "dechaussement_mm": dechaussement_mm,
+                    "n_leaves_ad": n_leaves_ad,
+                    "n_leaves_int": n_leaves_int,
+                    "n_leaves_juv": n_leaves_juv,
+                    "invasive_species_observed": ", ".join(invasive_species_observed),
+                    "invasive_notes": invasive_notes,
+                    "interpretation": interpretation
+                }])
+                new_row.to_csv(FUTURE_DATA_FILE, mode="a", header=False, index=False)
+                new_row.to_csv(FUTURE_DATA_FILE, mode="a", header=False, index=False)
+
+                if uploaded_photos:
+                    manifest = pd.read_csv(PHOTOS_MANIFEST)
+                    new_photo_rows = []
+                    for photo in uploaded_photos:
+                        ext = photo.name.split(".")[-1]
+                        unique_name = f"{mission_date}_{station}_{uuid.uuid4().hex[:8]}.{ext}"
+                        filepath = os.path.join(PHOTOS_DIR, unique_name)
+                        with open(filepath, "wb") as f:
+                            f.write(photo.getbuffer())
+                        new_photo_rows.append({
+                            "filename": filepath,
+                            "mission_date": str(mission_date),
+                            "station": station,
+                            "caption": f"{station} — {mission_date}"
+                        })
+                    manifest = pd.concat([manifest, pd.DataFrame(new_photo_rows)], ignore_index=True)
+                    manifest.to_csv(PHOTOS_MANIFEST, index=False)
+
+                st.success(T["submit_success"][lang].format(date=mission_date, station=station))
+                st.success(T["submit_success"][lang].format(date=mission_date, station=station))
+
+                st.subheader(T["submit_history_header"][lang])
+        future_data = pd.read_csv(FUTURE_DATA_FILE)
+        future_data = future_data.reset_index(drop=True)  # <-- add this line
+
+        if len(future_data) > 0:
+            st.markdown(T["submit_edit_hint"][lang])
+            edited_data = st.data_editor(
+                future_data,
+                use_container_width=True,
+                num_rows="dynamic",
+                key="future_missions_editor"
+            )
+            if st.button(T["submit_save_button"][lang]):
+                edited_data = edited_data.reset_index(drop=True)  # <-- and here, before saving
+                edited_data.to_csv(FUTURE_DATA_FILE, index=False)
+                st.success(T["submit_save_success"][lang])
+                st.rerun()
+        else:
+            st.info(T["submit_no_data"][lang])
+
 # ------------------------------------------------------------
 # TAB 6 — METHODOLOGY & SOURCES
 # ------------------------------------------------------------
@@ -1275,3 +1723,16 @@ with tab7:
                     for i, (path, caption) in enumerate(all_balises):
                         with cols2[i % 4]:
                             st.image(path, caption=caption, use_container_width=True)
+        st.divider()
+    st.subheader(T["gallery_new_missions_header"][lang])
+    manifest = pd.read_csv(PHOTOS_MANIFEST) if os.path.exists(PHOTOS_MANIFEST) else pd.DataFrame()
+    if len(manifest) > 0:
+        for date, group in manifest.groupby("mission_date"):
+            with st.expander(str(date), expanded=False):
+                cols = st.columns(3)
+                for i, (_, row) in enumerate(group.iterrows()):
+                    with cols[i % 3]:
+                        if os.path.exists(row["filename"]):
+                            st.image(row["filename"], caption=row["caption"], use_container_width=True)
+    else:
+        st.info(T["gallery_no_new_photos"][lang])

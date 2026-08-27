@@ -1,0 +1,16 @@
+cookie:
+  expiry_days: 30
+  key: change_this_to_any_random_string
+  name: posidonia_dashboard_auth
+credentials:
+  usernames:
+    Bayrem Admin:
+      email: admin@aspen.org
+      name: Bayrem
+      password: $2b$12$/XbwsOtuJAcIkNdln1mwiOv8Tquo/rMqxoWxxdhruOUIBj5hjyZJq
+      role: admin
+    member1:
+      email: member1@aspen.org
+      name: Member One
+      password: $2b$12$UVkvAB1VuBcGDzNEEucrKe1kVbAvh.fv4Thyl9VjchjpsUgvMnjVS
+      role: member
